@@ -155,30 +155,93 @@ def fetch_search(term: str, limit: int = 50) -> List[Dict]:
     return rows
 
 
-def fetch_reddit(max_per_subreddit: int = 40, search_limit: int = 20) -> List[Dict]:
+def fetch_reddit(max_per_subreddit: int = 40, search_limit: int = 20):
+    diagnostics = []
     all_rows = []
     seen = set()
 
+    try:
+        token = get_access_token()
+        diagnostics.append("OAuth token: OK")
+    except RedditAPIError as exc:
+        diagnostics.append(f"OAuth token: FAILED — {exc}")
+        return [], diagnostics
+    except Exception as exc:
+        diagnostics.append(
+            f"OAuth token: FAILED — {type(exc).__name__}: {exc}"
+        )
+        return [], diagnostics
+
     for subreddit in SUBREDDITS:
         try:
-            rows = fetch_subreddit_posts(subreddit, max_per_subreddit)
-        except RedditAPIError:
-            continue
+            data = _request(
+                f"https://oauth.reddit.com/r/{subreddit}/new",
+                token,
+                {"limit": min(max_per_subreddit, 100), "raw_json": 1},
+            )
 
-        for row in rows:
-            if row["url"] not in seen:
-                seen.add(row["url"])
-                all_rows.append(row)
+            children = data.get("data", {}).get("children", [])
+            diagnostics.append(
+                f"r/{subreddit}: {len(children)} posts"
+            )
+
+            for child in children:
+                post = child.get("data", {})
+
+                if post:
+                    row = _normalise(post, subreddit)
+
+                    if row["url"] not in seen:
+                        seen.add(row["url"])
+                        all_rows.append(row)
+
+        except Exception as exc:
+            diagnostics.append(
+                f"r/{subreddit}: FAILED — "
+                f"{type(exc).__name__}: {exc}"
+            )
 
     for term in SEARCH_TERMS:
         try:
-            rows = fetch_search(term, search_limit)
-        except RedditAPIError:
-            continue
+            data = _request(
+                "https://oauth.reddit.com/search",
+                token,
+                {
+                    "q": term,
+                    "sort": "new",
+                    "t": "week",
+                    "limit": min(search_limit, 100),
+                    "raw_json": 1,
+                },
+            )
 
-        for row in rows:
-            if row["url"] not in seen:
-                seen.add(row["url"])
-                all_rows.append(row)
+            children = data.get("data", {}).get("children", [])
 
-    return all_rows
+            diagnostics.append(
+                f'Search "{term}": {len(children)} posts'
+            )
+
+            for child in children:
+                post = child.get("data", {})
+
+                if post:
+                    row = _normalise(
+                        post,
+                        post.get("subreddit", "")
+                    )
+
+                    if row["url"] not in seen:
+                        seen.add(row["url"])
+                        all_rows.append(row)
+
+        except Exception as exc:
+            diagnostics.append(
+                f'Search "{term}": FAILED — '
+                f"{type(exc).__name__}: {exc}"
+            )
+
+    diagnostics.append(
+        f"Total unique Reddit items: {len(all_rows)}"
+    )
+
+    return all_rows, diagnostics
