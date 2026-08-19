@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import os
 from data import get_items
 from scoring import score_conversations
 
@@ -12,14 +13,29 @@ st.set_page_config(
 st.title("📡 Finance Conversation Radar")
 st.caption("The 10 finance conversations worth paying attention to this week")
 
-items = get_items()
-results = score_conversations(items)
+mode = st.sidebar.selectbox("Data mode", ["demo", "live"], index=0)
+if mode == "live":
+    os.environ["RADAR_MODE"] = "live"
+else:
+    os.environ["RADAR_MODE"] = "demo"
+
+try:
+    items = get_items()
+    results = score_conversations(items)
+    data_error = None
+except Exception as exc:
+    items, results = get_items() if mode == "demo" else [], []
+    data_error = str(exc)
 
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("Conversations detected", len(results))
 c2.metric("Source items", len(items))
 c3.metric("Platforms", len(set(i["platform"] for i in items)))
-c4.metric("Mode", "DEMO")
+c4.metric("Mode", mode.upper())
+
+if data_error:
+    st.error(f"Live data could not be loaded: {data_error}")
+    st.info("Switch back to DEMO mode while checking your Reddit credentials.")
 
 st.divider()
 

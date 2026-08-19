@@ -84,3 +84,44 @@ Weekly report + dashboard
 For a production deployment, schedule `generate_report.py` once per week using GitHub Actions, Cloud Run, Railway, Render, AWS Lambda/EventBridge, or another scheduler.
 
 The key design decision is that credentials and external API calls stay server-side.
+
+
+## V2 — Live Reddit
+
+V2 adds a server-side Reddit collector. The browser never calls Reddit directly.
+
+### Reddit setup
+
+Create a Reddit developer application and obtain the client ID/secret. The collector uses OAuth and sends the configured user-agent. Reddit's Data API terms require using the provided access information and not masking the OAuth identity/user-agent. See:
+https://redditinc.com/policies/data-api-terms
+
+For Streamlit Cloud, add these under **Settings → Secrets**:
+
+```toml
+RADAR_MODE = "live"
+REDDIT_CLIENT_ID = "..."
+REDDIT_CLIENT_SECRET = "..."
+REDDIT_USER_AGENT = "FinanceConversationRadar/1.0 by your_username"
+```
+
+Then reboot the app.
+
+### What V2 collects
+
+The collector monitors:
+
+- r/IndiaInvestments
+- r/IndianStreetBets
+- r/MutualFundsIndia
+- r/stocks
+- r/investing
+- r/personalfinance
+- r/personalfinanceindia
+
+It also runs finance keyword searches for the last week.
+
+The app deduplicates URLs and calculates an engagement measure from score + comments. For live Reddit data, momentum is initially estimated from engagement relative to post age; a later version can calculate true velocity from stored historical snapshots.
+
+### Important commercial-use note
+
+Before deploying this as a production/commercial monitoring service, review Reddit's current Data API Terms and any applicable commercial-use requirements. Reddit reserves the right to charge fees for future API use and states that commercial uses may require a separate agreement. 

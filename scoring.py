@@ -21,7 +21,13 @@ def score_conversations(items):
     for topic, rows in groups.items():
         platforms = {r["platform"] for r in rows}
         engagement = sum(max(0, r.get("engagement", 0)) for r in rows)
-        velocity = sum(max(0, r.get("velocity", 0)) for r in rows) / len(rows)
+        velocity_values = []
+        for r in rows:
+            age_hours = max(0.5, (now - r["published"]).total_seconds() / 3600)
+            supplied = r.get("velocity", 0)
+            proxy = supplied if supplied else (max(0, r.get("engagement", 0)) / age_hours)
+            velocity_values.append(proxy)
+        velocity = sum(velocity_values) / len(velocity_values)
 
         age_hours = []
         for r in rows:
