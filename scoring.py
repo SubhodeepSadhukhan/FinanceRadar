@@ -5,7 +5,7 @@ import math
 def _norm(values):
     if not values:
         return {}
-    lo, hi = min(values), max(values)
+    lo, hi = min(values.values()), max(values.values())
     if hi == lo:
         return {k: 50.0 for k in values}
     return {k: 100 * (v - lo) / (hi - lo) for k, v in values.items()}
