@@ -1,0 +1,6 @@
+streamlit>=1.40
+pandas>=2.2
+requests>=2.32
+feedparser>=6.0
+python-dotenv>=1.0
+scikit-learn>=1.5
